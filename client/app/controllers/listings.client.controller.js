@@ -1,5 +1,9 @@
-angular.module('listings').controller('ListingsController', ['$scope', '$location', '$stateParams', '$state', 'Listings', 
+//Inject dependency in your app
+angular.module('listings').controller('ListingsController', ['$scope', '$location', '$stateParams', '$state', 'Listings',
   function($scope, $location, $stateParams, $state, Listings){
+      $scope.markers = [];
+      $scope.listingToEdit = undefined;
+
     $scope.find = function() {
       /* set loader*/
       $scope.loading = true;
@@ -8,6 +12,15 @@ angular.module('listings').controller('ListingsController', ['$scope', '$locatio
       Listings.getAll().then(function(response) {
         $scope.loading = false; //remove loader
         $scope.listings = response.data;
+
+        var i = 0;
+        for (var key in $scope.listings ) {
+          if ($scope.listings[key].coordinates != null) {
+              $scope.markers.push(fillMarkers(key, $scope.listings[key]));
+          }
+          i++;
+        };
+
       }, function(error) {
         $scope.loading = false;
         $scope.error = 'Unable to retrieve listings!\n' + error;
@@ -36,6 +49,7 @@ angular.module('listings').controller('ListingsController', ['$scope', '$locatio
       Listings.read(id)
               .then(function(response) {
                 $scope.listing = response.data;
+                $scope.listingToEdit = response.data;
                 $scope.loading = false;
               }, function(error) {  
                 $scope.error = 'Unable to retrieve listing with id "' + id + '"\n' + error;
@@ -79,6 +93,26 @@ angular.module('listings').controller('ListingsController', ['$scope', '$locatio
         successfully finished, navigate back to the 'listing.list' state using $state.go(). If an error 
         occurs, pass it to $scope.error. 
        */
+      $scope.error = "";
+
+      if(!isValid) {
+          $scope.$broadcast('show-errors-check-validity', 'articleForm');
+
+          return false;
+      }
+      var id = $stateParams.listingId;
+
+      console.log(id);
+
+      Listings.update(id, $scope.listingToEdit)
+          .then(function(response) {
+              //if the object is successfully saved redirect back to the list page
+              $state.go('listings.list', { successMessage: 'Listing successfully edited!' });
+          }, function(error) {
+              //otherwise display the error
+              $scope.error = 'Unable to edit listing!\n' + error;
+          });
+
     };
 
     $scope.remove = function() {
@@ -86,7 +120,18 @@ angular.module('listings').controller('ListingsController', ['$scope', '$locatio
         Implement the remove function. If the removal is successful, navigate back to 'listing.list'. Otherwise, 
         display the error. 
        */
+      var id = $stateParams.listingId;
+      Listings.delete(id)
+          .then(function(response) {
+              //if the object is successfully deleted redirect back to the list page
+              $state.go('listings.list', { successMessage: 'Listing successfully deleted!' });
+          }, function(error) {
+              //otherwise display the error
+              $scope.error = 'Unable to delete listing!\n' + error;
+          });
     };
+
+
 
     /* Bind the success message to the scope if it exists as part of the current state */
     if($stateParams.successMessage) {
@@ -98,8 +143,30 @@ angular.module('listings').controller('ListingsController', ['$scope', '$locatio
       center: {
         latitude: 29.65163059999999,
         longitude: -82.3410518
-      }, 
+      },
       zoom: 14
-    }
+    };
+
+    $scope.options = {
+        scrollwheel: false
+    };
+
+    var fillMarkers = function (key, listing, idKey) {
+        if (idKey == null) {
+              idKey = "id";
+        }
+        var ret = {
+            code: listing.code,
+            name: listing.name,
+            address: listing.address,
+            latitude: listing["coordinates"]["latitude"],
+            longitude: listing["coordinates"]["longitude"]
+
+        };
+        ret[idKey] = key;
+
+        return ret;
+    };
+
   }
 ]);
